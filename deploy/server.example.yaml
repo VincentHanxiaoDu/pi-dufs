@@ -1,0 +1,9 @@
+serve-path: /data
+bind: 0.0.0.0
+port: 5000
+allow-upload: true
+allow-delete: false
+allow-search: true
+render-try-index: true
+auth:
+  - 'ai:REPLACE_WITH_STRONG_PASSWORD@/:rw'

@@ -1,0 +1,9 @@
+{
+  "name": "pi-dufs",
+  "version": "0.1.0",
+  "description": "Publish temporary files and static HTML sites to your own dufs server",
+  "license": "MIT",
+  "keywords": ["pi-package"],
+  "pi": {"skills": ["./skills"]},
+  "scripts": {"test": "python3 -m unittest discover -s tests"}
+}

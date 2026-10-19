@@ -1,0 +1,19 @@
+services:
+  dufs:
+    image: sigoden/dufs:v0.47.0
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./data:/data
+      - ./server.yaml:/config/server.yaml:ro
+    command: ["--config", "/config/server.yaml"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
