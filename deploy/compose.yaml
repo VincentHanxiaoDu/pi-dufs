@@ -2,7 +2,7 @@ services:
   dufs:
     image: sigoden/dufs:v0.47.0
     restart: unless-stopped
-    user: "1000:1000"
+    user: "${DUFS_UID:?Set DUFS_UID to your host uid}:${DUFS_GID:?Set DUFS_GID to your host gid}"
     ports:
       - "127.0.0.1:5000:5000"
     volumes:

@@ -30,7 +30,7 @@ Each publication has a unique directory. No overwrites or delete operation. Mult
 
 ## Docker server
 
-The `deploy/compose.yaml` example binds only to loopback. Create a private `deploy/server.yaml` (mode 0600) from the example, set a strong password, and create `deploy/data`. Run `docker compose -f deploy/compose.yaml up -d`. Then expose it **only to your tailnet**, for example:
+The `deploy/compose.yaml` example binds only to loopback. Create a private `deploy/server.yaml` (mode 0600) from the example, set a strong password, and create `deploy/data`. Run `DUFS_UID=$(id -u) DUFS_GID=$(id -g) docker compose -f deploy/compose.yaml up -d` so the container can read your private config and write your data. Supply the same UID/GID for later Compose commands (or store these non-secret values in `deploy/.env`). Then expose it **only to your tailnet**, for example:
 
 ```sh
 tailscale serve --bg --https=8443 http://127.0.0.1:5000
