@@ -18,7 +18,7 @@ class MaterialTests(unittest.TestCase):
             release = root / 'release.zip'
             with zipfile.ZipFile(release, 'w') as bundle:
                 bundle.writestr('index.html', '<html><head><meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" name="viewport"><link href="__ASSETS_PREFIX__favicon.ico"></head><body>__INDEX_DATA__</body></html>')
-                bundle.writestr('index.js', 'createI18n({locale:navigator.language})')
+                bundle.writestr('index.js', 'createI18n({locale:navigator.language}); n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())')
                 bundle.writestr('index.css', 'body{margin:0}')
                 bundle.writestr('vite.svg', '<svg/>')
             source = root / 'source.tar.gz'
@@ -34,6 +34,7 @@ class MaterialTests(unittest.TestCase):
             self.assertIn('__INDEX_DATA__', html)
             self.assertNotIn('user-scalable=no', html)
             self.assertNotIn('navigator.language', (output / 'index.js').read_text())
+            self.assertIn('location.assign("/__dufs/login")', (output / 'index.js').read_text())
             self.assertTrue((output / 'favicon.svg').is_file())
             material.customize(release, root / 'second-build', source)
             self.assertEqual((output / 'theme-source.tar.gz').read_bytes(), (root / 'second-build/theme-source.tar.gz').read_bytes())

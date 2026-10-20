@@ -18,4 +18,4 @@ When using the downloadable source bundle, `customize.py`, `mobile.css`, LICENSE
 
 Point dufs's `assets` option at the generated directory. Keep the `theme-source.tar.gz` output: the UI footer links to it to provide the corresponding sources and modifications to every user. Retain upstream credits.
 
-The existing login gateway handles CHECKAUTH and LOGOUT. Token-only links for external downloaders still require gateway authentication; this adaptation does not loosen access controls. Only host trusted HTML/Markdown, as with the default dufs UI.
+The existing login gateway handles CHECKAUTH and LOGOUT. A checked bundle patch redirects to its HTML login page after logout instead of refreshing an unauthorized file list. Token-only links for external downloaders still require gateway authentication; this adaptation does not loosen access controls. Only host trusted HTML/Markdown, as with the default dufs UI.

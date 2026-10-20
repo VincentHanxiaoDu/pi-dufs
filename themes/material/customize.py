@@ -43,6 +43,8 @@ def customize(archive, output, source_archive):
     }
     html = replace_once(html, '<head>', '<head><meta http-equiv="Content-Security-Policy" content="'+policy+'"><script>window.__DUFS_MATERIAL_CONFIG__='+json.dumps(config, separators=(',', ':'))+';</script>')
     js = replace_once(js, 'locale:navigator.language', 'locale:"en"')
+    # The stock theme refreshes the list after LOGOUT; our cookie gateway needs navigation.
+    js = replace_once(js, 'n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())', 'n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),location.assign("/__dufs/login"))')
     (output / 'index.html').write_text(html)
     (output / 'index.js').write_text(js)
     (output / 'index.css').write_text(css + '\n' + (HERE / 'mobile.css').read_text())
