@@ -1,25 +1,25 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>登录 · 私人文件空间</title>
+<title>Sign in · Private Files</title>
 <style>
 :root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:#10151d;color:#eef2f7}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px}main{width:100%;max-width:400px;padding:30px;border:1px solid #354050;border-radius:20px;background:#1a2230}h1{font-size:26px;margin:0 0 8px}p{color:#b9c5d6;margin:0 0 24px}label{display:block;margin:18px 0 6px;font-weight:600}input,button{width:100%;font:inherit;min-height:48px;border-radius:10px;padding:12px}input{background:#10151d;color:#fff;border:1px solid #627187}input:focus-visible,button:focus-visible{outline:3px solid #a2c7ff;outline-offset:3px}button{margin-top:24px;border:0;background:#a2c7ff;color:#10213d;font-weight:700;cursor:pointer}.error{color:#ffd0c8;border-left:3px solid #ff9b8b;padding-left:12px;margin:16px 0}.note{font-size:13px;margin:22px 0 0;color:#aebdce}
 </style>
 </head>
 <body><main>
-<h1>私人文件空间</h1>
-<p>登录后浏览文件、上传和预览 HTML。</p>
+<h1>Private Files</h1>
+<p>Sign in to browse, upload, and preview your files.</p>
 {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
 <form method="post" action="/__dufs/login">
 <input type="hidden" name="next" value="{{.Next}}">
-<label for="username">用户名</label>
+<label for="username">Username</label>
 <input id="username" name="username" type="text" value="{{.Username}}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="128">
-<label for="password">密码</label>
+<label for="password">Password</label>
 <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024">
-<button type="submit">登录</button>
+<button type="submit">Sign in</button>
 </form>
-<p class="note">仅限 Tailscale 私网 · 登录有效期 8 小时<br>可以切换应用复制密码，返回后继续填写。密码不会保存在网页本地存储中。</p>
+<p class="note">Tailscale only · Signed in for 8 hours<br>You can switch apps to copy your password and return here. Your password is not saved in browser storage.</p>
 </main></body>
 </html>

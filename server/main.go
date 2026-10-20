@@ -210,7 +210,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if !g.allowAttempt(r) {
 			w.Header().Set("Retry-After", "60")
-			g.page(w, 429, next, g.username, "尝试次数过多，请一分钟后重试。")
+			g.page(w, 429, next, g.username, "Too many attempts. Please try again in one minute.")
 			return
 		}
 		if strings.Split(r.Header.Get("Content-Type"), ";")[0] != "application/x-www-form-urlencoded" {
@@ -227,7 +227,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		username, password := r.PostForm.Get("username"), r.PostForm.Get("password")
 		actual := sha256.Sum256([]byte(username + "\x00" + password))
 		if subtle.ConstantTimeCompare(actual[:], g.credentials[:]) != 1 {
-			g.page(w, 401, next, username, "用户名或密码不正确，请重试。")
+			g.page(w, 401, next, username, "Incorrect username or password. Please try again.")
 			return
 		}
 		if g.issueSession(w, r) {

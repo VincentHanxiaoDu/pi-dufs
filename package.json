@@ -2,7 +2,7 @@
   "name": "pi-dufs",
   "version": "0.1.0",
   "description": "Publish temporary files and static HTML sites to your own dufs server",
-  "license": "MIT",
+  "license": "(MIT AND AGPL-3.0-only)",
   "keywords": ["pi-package"],
   "pi": {"skills": ["./skills"]},
   "scripts": {"test": "python3 -m unittest discover -s tests"}

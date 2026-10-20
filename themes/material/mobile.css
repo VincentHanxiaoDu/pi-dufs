@@ -1,0 +1,9 @@
+/* Keep file names and navigation usable without sideways scrolling on phones. */
+@media (max-width: 600px) {
+  .v-table th:nth-child(2), .v-table td:nth-child(2),
+  .v-table th:nth-child(3), .v-table td:nth-child(3) { display: none; }
+  .v-table td:first-child > .d-flex { min-width: 0 !important; }
+  .v-table td:first-child a { overflow-wrap: anywhere; }
+  .v-table td, .v-table th { padding-inline: 10px !important; }
+  .v-breadcrumbs { flex-wrap: wrap; row-gap: 4px; }
+}

@@ -80,7 +80,7 @@ func login(t *testing.T, g *gateway) *http.Cookie {
 func TestPageAndAuthentication(t *testing.T) {
 	g, _ := setup(t)
 	w := call(g, "GET", loginPath, "", "", nil)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `autocomplete="current-password"`) || !strings.Contains(w.Body.String(), `value="ai"`) {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `autocomplete="current-password"`) || !strings.Contains(w.Body.String(), `value="ai"`) || !strings.Contains(w.Body.String(), `<html lang="en">`) || !strings.Contains(w.Body.String(), `Sign in`) {
 		t.Fatal("missing usable login form")
 	}
 	if !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
@@ -98,7 +98,7 @@ func TestPageAndAuthentication(t *testing.T) {
 		t.Fatal("must not trigger native auth popup")
 	}
 	w = call(g, "POST", loginPath, "username=ai&password=WRONG", g.origin, nil)
-	if w.Code != 401 || strings.Contains(w.Body.String(), "WRONG") || len(w.Result().Cookies()) != 0 {
+	if w.Code != 401 || strings.Contains(w.Body.String(), "WRONG") || len(w.Result().Cookies()) != 0 || !strings.Contains(w.Body.String(), "Incorrect username or password.") {
 		t.Fatal("bad password accepted or echoed")
 	}
 	cookie := login(t, g)
