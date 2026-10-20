@@ -36,6 +36,6 @@ The `deploy/compose.yaml` example binds only to loopback. Create a private `depl
 tailscale serve --bg --https=8443 http://127.0.0.1:5000
 ```
 
-Choose an unused HTTPS port; do not reset existing Serve configuration. No Funnel is needed. All reads and writes require authentication. Browser previews prompt for the same username/password. Configure tailnet ACLs separately if only certain devices should reach the service.
+Choose an unused HTTPS port; do not reset existing Serve configuration. No Funnel is needed. All reads and writes require authentication. Without the optional gateway, browser previews use the browser's native authentication popup. For a mobile-friendly HTML login page with an eight-hour session, deploy the [login gateway](server/README.md) in front of dufs; it uses the same username/password and preserves the AI client's API. Configure tailnet ACLs separately if only certain devices should reach the service.
 
 The mounted data directory survives container replacement. Back up data and your encrypted credentials. For Nix/sops deployments, render the server auth config from sops rather than keeping a second plaintext source of truth.
