@@ -1,3 +1,10 @@
+.dufs-markdown-modes { display: flex; gap: 8px; padding: 8px 24px; }
+.dufs-markdown-modes button { min-height: 44px; min-width: 96px; padding: 8px 16px; border-radius: 8px; font: inherit; }
+.dufs-markdown-modes button[aria-pressed="true"] { background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); }
+.dufs-markdown-modes button:focus-visible, .dufs-markdown-source:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
+.dufs-markdown-source { margin: 0; padding: 16px 24px; white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.6 ui-monospace, monospace; }
+.dufs-markdown-source code { font: inherit; }
+
 /* Keep file names and navigation usable without sideways scrolling on phones. */
 @media (max-width: 600px) {
   .v-table th:nth-child(2), .v-table td:nth-child(2),

@@ -45,6 +45,14 @@ def customize(archive, output, source_archive):
     js = replace_once(js, 'locale:navigator.language', 'locale:"en"')
     # Render Markdown on click without turning HTML website links into code previews.
     js = replace_once(js, 'let st=(e,t)=>{d&&(', 'let st=(e,t)=>{(d||e.ext==="md")&&(')
+    # Reuse the existing Markdown fetch/parser; source is rendered as escaped text, never HTML.
+    js = replace_once(js, 'ae=R(``),oe=R(!1)', 'ae=R(``),dufsMdSource=R(""),dufsMdMode=R("preview"),oe=R(!1)')
+    js = replace_once(js, 'me=async()=>{if(!F.value.fullpath)return;let e=', 'me=async()=>{if(!F.value.fullpath)return;const dufsMdPath=F.value.fullpath;dufsMdSource.value="";dufsMdMode.value="preview";let e=')
+    js = replace_once(js, 't=await a(F.value.fullpath).then(e=>e.text());if(v.value=', 't=await a(dufsMdPath).then(e=>e.text());if(F.value.fullpath!==dufsMdPath){clearTimeout(e);return}dufsMdSource.value=t;if(v.value=')
+    switches = 'F.value.ext==="md"?q("div",{class:"dufs-markdown-modes",role:"group","aria-label":"Markdown view"},[q("button",{type:"button","aria-pressed":dufsMdMode.value==="preview",onClick:()=>dufsMdMode.value="preview"},"Preview",8,["aria-pressed"]),q("button",{type:"button","aria-pressed":dufsMdMode.value==="source",onClick:()=>dufsMdMode.value="source"},"Source",8,["aria-pressed"])]):Ps("",true)'
+    js = replace_once(js, '}),J(yA),P.value===`image`?', '}),'+switches+',J(yA),P.value===`image`?')
+    source_view = 'F.value.ext==="md"&&dufsMdMode.value==="source"?q("pre",{class:"dufs-markdown-source",tabindex:0,"aria-label":"Markdown source"},[q("code",null,je(dufsMdSource.value),1)]):'
+    js = replace_once(js, 'default:U(()=>[F.value.ext===`md`||B(pE)[F.value.ext]?', 'default:U(()=>['+source_view+'F.value.ext===`md`||B(pE)[F.value.ext]?')
     # Empty q selects dufs directory listing even when render-try-index is enabled.
     js = replace_once(js, 'to:e.fullpath+`/`', 'to:e.fullpath+`/?q=`')
     js = replace_once(js, 'title:decodeURIComponent(n),href:t}', 'title:decodeURIComponent(n),href:t+"?q="}')
