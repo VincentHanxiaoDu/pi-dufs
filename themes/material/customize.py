@@ -43,6 +43,8 @@ def customize(archive, output, source_archive):
     }
     html = replace_once(html, '<head>', '<head><meta http-equiv="Content-Security-Policy" content="'+policy+'"><script>window.__DUFS_MATERIAL_CONFIG__='+json.dumps(config, separators=(',', ':'))+';</script>')
     js = replace_once(js, 'locale:navigator.language', 'locale:"en"')
+    # Render Markdown on click without turning HTML website links into code previews.
+    js = replace_once(js, 'let st=(e,t)=>{d&&(', 'let st=(e,t)=>{(d||e.ext==="md")&&(')
     # Empty q selects dufs directory listing even when render-try-index is enabled.
     js = replace_once(js, 'to:e.fullpath+`/`', 'to:e.fullpath+`/?q=`')
     js = replace_once(js, 'title:decodeURIComponent(n),href:t}', 'title:decodeURIComponent(n),href:t+"?q="}')

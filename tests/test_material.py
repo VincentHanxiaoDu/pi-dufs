@@ -18,7 +18,7 @@ class MaterialTests(unittest.TestCase):
             release = root / 'release.zip'
             with zipfile.ZipFile(release, 'w') as bundle:
                 bundle.writestr('index.html', '<html><head><meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" name="viewport"><link href="__ASSETS_PREFIX__favicon.ico"></head><body>__INDEX_DATA__</body></html>')
-                bundle.writestr('index.js', 'createI18n({locale:navigator.language}); to:e.fullpath+`/`; title:decodeURIComponent(n),href:t}; new URLSearchParams([[`json`,``]]);b.value&&t.append; n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())')
+                bundle.writestr('index.js', 'createI18n({locale:navigator.language}); let st=(e,t)=>{d&&(; to:e.fullpath+`/`; title:decodeURIComponent(n),href:t}; new URLSearchParams([[`json`,``]]);b.value&&t.append; n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())')
                 bundle.writestr('index.css', 'body{margin:0}')
                 bundle.writestr('vite.svg', '<svg/>')
             source = root / 'source.tar.gz'
@@ -36,6 +36,8 @@ class MaterialTests(unittest.TestCase):
             self.assertNotIn('navigator.language', (output / 'index.js').read_text())
             js = (output / 'index.js').read_text()
             self.assertIn('location.assign("/__dufs/login")', js)
+            self.assertIn('let st=(e,t)=>{(d||e.ext==="md")&&(', js)
+            self.assertIn('"preferPreview":false', html)
             self.assertIn('to:e.fullpath+`/?q=`', js)
             self.assertIn('href:t+"?q="', js)
             self.assertIn('[[`json`,``],[`q`,``]]', js)
