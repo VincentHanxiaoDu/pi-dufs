@@ -41,6 +41,8 @@ type gateway struct {
 	password    string
 	credentials [32]byte
 	proxy       *httputil.ReverseProxy
+	upstream    *url.URL
+	uploads     sync.Mutex
 	mu          sync.Mutex
 	sessions    map[string]time.Time
 	attempts    map[string]attempts
@@ -58,7 +60,7 @@ func newGateway(origin, upstream, username, password string) (*gateway, error) {
 	if username == "" || strings.ContainsAny(username, ":\r\n") || password == "" {
 		return nil, fmt.Errorf("invalid credentials configuration")
 	}
-	g := &gateway{origin: "https://" + public.Host, host: public.Host, username: username, password: password,
+	g := &gateway{origin: "https://" + public.Host, host: public.Host, username: username, password: password, upstream: target,
 		credentials: sha256.Sum256([]byte(username + "\x00" + password)), sessions: make(map[string]time.Time), attempts: make(map[string]attempts)}
 	g.proxy = &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
@@ -182,6 +184,46 @@ func (g *gateway) page(w http.ResponseWriter, status int, next, username, messag
 	_ = loginTemplate.Execute(w, struct{ Next, Username, Error string }{next, username, message})
 }
 
+// Serialize PUTs so conditional creates cannot race, including empty files.
+func (g *gateway) serveFiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPut {
+		g.uploads.Lock()
+		defer g.uploads.Unlock()
+		if r.Header.Get("If-None-Match") == "*" {
+			head := r.Clone(r.Context())
+			head.Method, head.Body, head.GetBody, head.ContentLength = "HEAD", nil, nil, 0
+			head.RequestURI = ""
+			head.URL = &url.URL{Scheme: g.upstream.Scheme, Host: g.upstream.Host, Path: r.URL.Path, RawPath: r.URL.RawPath}
+			head.Host = g.upstream.Host
+			head.Header = make(http.Header)
+			head.Header.Set("Authorization", r.Header.Get("Authorization"))
+			head.TransferEncoding, head.Trailer = nil, nil
+			if r.Context().Value(sessionAuthKey{}) == true {
+				head.SetBasicAuth(g.username, g.password)
+			}
+			response, err := g.proxy.Transport.RoundTrip(head)
+			if err != nil {
+				http.Error(w, "File service unavailable", 502)
+				return
+			}
+			response.Body.Close()
+			if response.StatusCode >= 200 && response.StatusCode < 300 {
+				http.Error(w, "Destination already exists", http.StatusPreconditionFailed)
+				return
+			}
+			if response.StatusCode != http.StatusNotFound {
+				status := response.StatusCode
+				if status < 400 {
+					status = 502
+				}
+				http.Error(w, "Cannot check destination", status)
+				return
+			}
+		}
+	}
+	g.proxy.ServeHTTP(w, r)
+}
+
 func redirectMarkdown(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != "GET" || r.Header.Get("Sec-Fetch-Mode") != "navigate" || r.Header.Get("Sec-Fetch-Dest") != "document" || !strings.EqualFold(path.Ext(r.URL.Path), ".md") {
 		return false
@@ -292,7 +334,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r = r.WithContext(context.WithValue(r.Context(), sessionAuthKey{}, true))
-		g.proxy.ServeHTTP(w, r)
+		g.serveFiles(w, r)
 		return
 	}
 	if r.Method == "GET" && (r.Header.Get("Sec-Fetch-Mode") == "navigate" || (r.Header.Get("Authorization") == "" && strings.Contains(r.Header.Get("Accept"), "text/html"))) {
@@ -301,7 +343,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// Explicit Authorization is for AI/WebDAV clients; dufs validates it as before.
 	if r.Header.Get("Authorization") != "" {
-		g.proxy.ServeHTTP(w, r)
+		g.serveFiles(w, r)
 		return
 	}
 	http.Error(w, "Login required", http.StatusUnauthorized)

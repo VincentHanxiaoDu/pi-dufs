@@ -20,13 +20,16 @@ The config-file fallback also works in long-lived AI services that do not inheri
 
 ```sh
 python3 skills/dufs/scripts/dufs.py check
-python3 skills/dufs/scripts/dufs.py publish ./report.html
-python3 skills/dufs/scripts/dufs.py publish ./dist
+python3 skills/dufs/scripts/dufs.py publish ./report.html reports/analysis.html
+python3 skills/dufs/scripts/dufs.py publish ./spec.md projects/example/design/spec.md
+python3 skills/dufs/scripts/dufs.py publish ./dist sites/example
 python3 skills/dufs/scripts/dufs.py list
 python3 -m unittest discover -s tests
 ```
 
-Each publication has a unique directory. No overwrites or delete operation. Multi-file uploads can be partial on failure; files do not expire automatically. Only upload a reviewed, clean export directory. HTML executes JavaScript: do not publish untrusted HTML on an authenticated writable origin.
+The caller chooses the **exact remote path**. No UUID, timestamp, prefix, suffix or wrapper directory is added. A file destination includes its filename; a directory destination receives the source directory's contents. `publish` now requires this destination argument; older one-argument commands fail instead of silently inventing names. Existing directories and share URLs are not migrated.
+
+All target files are checked before uploading. Existing files fail instead of being renamed or overwritten. The optional gateway enforces `If-None-Match: *` and serializes PUT requests to prevent concurrent creation races, including empty files; standalone dufs preflight is not atomic. There is no overwrite or delete command. Multi-file uploads can be partial on failure; inspect the chosen location before retrying. Files do not expire automatically. Only upload a reviewed, clean export directory. HTML executes JavaScript: do not publish untrusted HTML on an authenticated writable origin.
 
 ## Docker server
 

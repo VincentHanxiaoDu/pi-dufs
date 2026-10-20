@@ -44,12 +44,16 @@ def customize(archive, output, source_archive):
     html = replace_once(html, '<head>', '<head><meta http-equiv="Content-Security-Policy" content="'+policy+'"><script>window.__DUFS_MATERIAL_CONFIG__='+json.dumps(config, separators=(',', ':'))+';</script>')
     js = replace_once(js, 'locale:navigator.language', 'locale:"en"')
     # Render Markdown on click without turning HTML website links into code previews.
-    js = replace_once(js, 'let st=(e,t)=>{d&&(', 'let st=(e,t)=>{(d||e.ext==="md")&&(')
+    js = replace_once(js, 'let st=(e,t)=>{d&&(', 'let st=(e,t)=>{if(e.ext==="md"&&t)return;(d||e.ext==="md")&&(')
+    # Markdown is a navigable full-screen reading page, using the existing renderer.
+    js = replace_once(js, 'J(gA,{modelValue:N.value,', 'J(gA,{modelValue:N.value,fullscreen:F.value.ext==="md",')
+    js = replace_once(js, ',8,[`modelValue`]),J(gA,{modelValue:oe.value', ',8,[`modelValue`,`fullscreen`]),J(gA,{modelValue:oe.value')
+    js = replace_once(js, 'onClick:t[18]||=e=>N.value=!1', '"aria-label":"Back to files",onClick:t[18]||=()=>{if(F.value.ext==="md")location.assign(M.value+"?q=");else N.value=false}')
     # Reuse the existing Markdown fetch/parser; source is rendered as escaped text, never HTML.
     js = replace_once(js, 'ae=R(``),oe=R(!1)', 'ae=R(``),dufsMdSource=R(""),dufsMdMode=R("preview"),dufsAutoPreviewed="",oe=R(!1)')
     js = replace_once(js, 'me=async()=>{if(!F.value.fullpath)return;let e=', 'me=async()=>{if(!F.value.fullpath)return;const dufsMdPath=F.value.fullpath;dufsMdSource.value="";dufsMdMode.value="preview";let e=')
     js = replace_once(js, 't=await a(F.value.fullpath).then(e=>e.text());if(v.value=', 't=await a(dufsMdPath).then(e=>e.text());if(F.value.fullpath!==dufsMdPath){clearTimeout(e);return}dufsMdSource.value=t;if(v.value=')
-    switches = 'F.value.ext==="md"?q("div",{class:"dufs-markdown-modes",role:"group","aria-label":"Markdown view"},[q("button",{type:"button","aria-pressed":dufsMdMode.value==="preview",onClick:()=>dufsMdMode.value="preview"},"Preview",8,["aria-pressed"]),q("button",{type:"button","aria-pressed":dufsMdMode.value==="source",onClick:()=>dufsMdMode.value="source"},"Source",8,["aria-pressed"])]):Ps("",true)'
+    switches = 'F.value.ext==="md"?q("div",{class:"dufs-markdown-modes",role:"group","aria-label":"Markdown view"},[q("a",{href:M.value+"?q=",class:"dufs-reader-back"},"Back to files",8,["href"]),q("button",{type:"button","aria-pressed":dufsMdMode.value==="preview",onClick:()=>dufsMdMode.value="preview"},"Preview",8,["aria-pressed"]),q("button",{type:"button","aria-pressed":dufsMdMode.value==="source",onClick:()=>dufsMdMode.value="source"},"Source",8,["aria-pressed"])]):Ps("",true)'
     js = replace_once(js, '}),J(yA),P.value===`image`?', '}),'+switches+',J(yA),P.value===`image`?')
     source_view = 'F.value.ext==="md"&&dufsMdMode.value==="source"?q("pre",{class:"dufs-markdown-source",tabindex:0,"aria-label":"Markdown source"},[q("code",null,je(dufsMdSource.value),1)]):'
     js = replace_once(js, 'default:U(()=>[F.value.ext===`md`||B(pE)[F.value.ext]?', 'default:U(()=>['+source_view+'F.value.ext===`md`||B(pE)[F.value.ext]?')

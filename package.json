@@ -1,6 +1,6 @@
 {
   "name": "pi-dufs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Publish temporary files and static HTML sites to your own dufs server",
   "license": "(MIT AND AGPL-3.0-only)",
   "keywords": ["pi-package"],

@@ -20,6 +20,9 @@ class MaterialTests(unittest.TestCase):
                 bundle.writestr('index.html', '<html><head><meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" name="viewport"><link href="__ASSETS_PREFIX__favicon.ico"></head><body>__INDEX_DATA__</body></html>')
                 bundle.writestr('index.js', '\n'.join([
                     'createI18n({locale:navigator.language}); let st=(e,t)=>{d&&(',
+                    'J(gA,{modelValue:N.value,',
+                    ',8,[`modelValue`]),J(gA,{modelValue:oe.value',
+                    'onClick:t[18]||=e=>N.value=!1',
                     'ae=R(``),oe=R(!1)',
                     'me=async()=>{if(!F.value.fullpath)return;let e=',
                     't=await a(F.value.fullpath).then(e=>e.text());if(v.value=',
@@ -50,7 +53,10 @@ class MaterialTests(unittest.TestCase):
             self.assertNotIn('navigator.language', (output / 'index.js').read_text())
             js = (output / 'index.js').read_text()
             self.assertIn('location.assign("/__dufs/login")', js)
-            self.assertIn('let st=(e,t)=>{(d||e.ext==="md")&&(', js)
+            self.assertIn('if(e.ext==="md"&&t)return;', js)
+            self.assertIn('fullscreen:F.value.ext==="md"', js)
+            self.assertIn('[`modelValue`,`fullscreen`]', js)
+            self.assertIn('"Back to files"', js)
             self.assertIn('"preferPreview":false', html)
             self.assertIn('dufsMdMode.value="preview"', js)
             self.assertIn('F.value.fullpath!==dufsMdPath', js)

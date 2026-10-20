@@ -9,7 +9,12 @@ import sys
 from urllib.error import HTTPError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
-import uuid
+
+
+class DufsError(ValueError):
+    def __init__(self, status):
+        self.status = status
+        super().__init__(f"dufs returned HTTP {status}")
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -39,6 +44,8 @@ def settings():
 def remote_path(value):
     if not value or value.startswith("/") or "\\" in value or any(p in ("", ".", "..") for p in value.split("/")):
         raise ValueError("Remote path must be relative, with no empty, dot or parent components")
+    if value.split('/')[0] == '__dufs' or value.split('/')[0].startswith('__dufs_v'):
+        raise ValueError("That path is reserved for the server UI")
     return quote(value, safe="/")
 
 
@@ -48,9 +55,11 @@ class Client:
         # Private service traffic must not pass through ambient HTTP proxies.
         self.opener = build_opener(ProxyHandler({}), NoRedirect())
 
-    def request(self, method, path="", data=None, size=None, query=""):
+    def request(self, method, path="", data=None, size=None, query="", create_only=False):
         url = self.url + "/" + (remote_path(path) if path else "") + query
         headers = {"Authorization": "Basic " + self.auth}
+        if create_only:
+            headers["If-None-Match"] = "*"
         if size is not None:
             headers["Content-Length"] = str(size)
             headers["Content-Type"] = "application/octet-stream"
@@ -59,9 +68,9 @@ class Client:
                 return response.read(1024 * 1024)
         except HTTPError as error:
             # Never include credential-bearing headers or untrusted response bodies.
-            raise ValueError(f"dufs returned HTTP {error.code}") from None
+            raise DufsError(error.code) from None
 
-    def publish(self, source):
+    def publish(self, source, destination):
         source = Path(source).expanduser()
         if source.is_symlink() or not source.exists():
             raise ValueError("Source must exist and must not be a symlink")
@@ -76,21 +85,32 @@ class Client:
         files = [f for f in files if f.is_file()]
         if not files:
             raise ValueError("No files to publish")
-        prefix = uuid.uuid4().hex
-        for file in files:
-            relative = file.relative_to(source).as_posix() if source.is_dir() else file.name
-            with file.open("rb") as stream:
-                self.request("PUT", prefix + "/" + relative, stream, file.stat().st_size)
-        target = prefix + "/" if source.is_dir() else prefix + "/" + quote(source.name, safe="")
-        self.request("HEAD", prefix + ("/index.html" if source.is_dir() and (source / "index.html").is_file() else "/" + (files[0].relative_to(source).as_posix() if source.is_dir() else source.name)))
-        return {"url": self.url + "/" + target, "files": len(files)}
+        is_directory = source.is_dir()
+        destination = destination.removesuffix('/') if is_directory else destination
+        remote_path(destination)
+        uploads = [(file, destination + '/' + file.relative_to(source).as_posix() if is_directory else destination) for file in files]
+        for _, target in uploads:
+            remote_path(target)
+            try:
+                self.request('HEAD', target)
+            except DufsError as error:
+                if error.status != 404:
+                    raise
+            else:
+                raise ValueError(f"Destination already exists: {target}; no files were uploaded")
+        for file, target in uploads:
+            with file.open('rb') as stream:
+                self.request('PUT', target, stream, file.stat().st_size, create_only=True)
+        self.request('HEAD', uploads[0][1])
+        return {"url": self.url + '/' + remote_path(destination) + ('/' if is_directory else ''), "files": len(files), "path": destination}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    publish = commands.add_parser("publish", help="Upload a file or clean static-site directory into a unique folder")
+    publish = commands.add_parser("publish", help="Upload to the exact remote file path or directory chosen by the caller")
     publish.add_argument("source")
+    publish.add_argument("destination", help="Exact relative remote path; no prefixes or suffixes are added")
     listing = commands.add_parser("list", help="List a server directory as JSON")
     listing.add_argument("path", nargs="?", default="")
     commands.add_parser("check", help="Check authenticated server access")
@@ -98,9 +118,9 @@ def main():
     try:
         client = Client()
         if args.command == "publish":
-            print(json.dumps(client.publish(args.source)))
+            print(json.dumps(client.publish(args.source, args.destination)))
         elif args.command == "list":
-            print(client.request("GET", args.path, query="?json").decode())
+            print(client.request("GET", args.path, query="?json&q=").decode())
         else:
             client.request("HEAD")
             print(json.dumps({"ok": True, "url": client.url}))

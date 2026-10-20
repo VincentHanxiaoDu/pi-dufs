@@ -1,4 +1,7 @@
-.dufs-markdown-modes { display: flex; gap: 8px; padding: 8px 24px; }
+.dufs-markdown-modes { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px; flex-shrink: 0; }
+.dufs-reader-back { display: inline-flex; align-items: center; min-height: 44px; padding: 8px; color: rgb(var(--v-theme-primary)); }
+.v-dialog--fullscreen .markdown-body, .v-dialog--fullscreen .dufs-markdown-source { max-width: 1000px; width: 100%; margin-inline: auto; }
+.v-dialog--fullscreen .markdown-body { font-size: 17px; line-height: 1.75; }
 .dufs-markdown-modes button { min-height: 44px; min-width: 96px; padding: 8px 16px; border-radius: 8px; font: inherit; }
 .dufs-markdown-modes button[aria-pressed="true"] { background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); }
 .dufs-markdown-modes button:focus-visible, .dufs-markdown-source:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
