@@ -15,6 +15,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -181,6 +182,25 @@ func (g *gateway) page(w http.ResponseWriter, status int, next, username, messag
 	_ = loginTemplate.Execute(w, struct{ Next, Username, Error string }{next, username, message})
 }
 
+func redirectMarkdown(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != "GET" || r.Header.Get("Sec-Fetch-Mode") != "navigate" || r.Header.Get("Sec-Fetch-Dest") != "document" || !strings.EqualFold(path.Ext(r.URL.Path), ".md") {
+		return false
+	}
+	query := r.URL.Query()
+	for _, flag := range []string{"raw", "download", "json", "view", "edit", "hash", "tokengen"} {
+		if query.Has(flag) {
+			return false
+		}
+	}
+	parent := path.Dir(r.URL.Path)
+	if parent != "/" {
+		parent += "/"
+	}
+	target := url.URL{Path: parent, RawQuery: url.Values{"q": {""}, "preview": {path.Base(r.URL.Path)}}.Encode()}
+	http.Redirect(w, r, target.String(), http.StatusSeeOther)
+	return true
+}
+
 func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "same-origin")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -266,6 +286,9 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if g.validSession(r) {
 		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" && r.Header.Get("Origin") != g.origin {
 			http.Error(w, "Invalid origin", 403)
+			return
+		}
+		if redirectMarkdown(w, r) {
 			return
 		}
 		r = r.WithContext(context.WithValue(r.Context(), sessionAuthKey{}, true))

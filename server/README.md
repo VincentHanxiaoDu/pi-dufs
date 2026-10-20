@@ -9,6 +9,7 @@ Optional standard-library-only Go proxy in front of dufs. Browsers get a real HT
 - Built-in dufs `CHECKAUTH` and `LOGOUT` methods work; dufs's logout button clears the browser session. `POST /__dufs/logout` is also available.
 - Native `WWW-Authenticate` challenges are suppressed, including invalid API credentials; API clients must send Authorization proactively (the bundled skill does).
 - Streaming uploads, range downloads, WebDAV methods and HTML assets are proxied without buffering whole files.
+- Authenticated browser document navigation to `.md` redirects to the Material file browser and opens its Preview/Source dialog. Fetch/API requests remain raw; `?raw=1` bypasses presentation explicitly. Other file operations and HTML navigation are unchanged.
 - Passwords are never placed in URLs, logs, localStorage, sessionStorage or session cookies.
 
 Configuration (all required except `LISTEN_ADDR`):

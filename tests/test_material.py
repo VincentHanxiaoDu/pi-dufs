@@ -25,6 +25,10 @@ class MaterialTests(unittest.TestCase):
                     't=await a(F.value.fullpath).then(e=>e.text());if(v.value=',
                     '}),J(yA),P.value===`image`?',
                     'default:U(()=>[F.value.ext===`md`||B(pE)[F.value.ext]?',
+                    'e.paths.forEach(te),C.value=e}',
+                    'href:F.value.fullpath,download:F.value.filename',
+                    'href:M.value+encodeURIComponent(e.name),download:e.filename',
+                    'href:M.value+encodeURIComponent(e.name),download:e.filename',
                     'to:e.fullpath+`/`; title:decodeURIComponent(n),href:t}',
                     'new URLSearchParams([[`json`,``]]);b.value&&t.append',
                     'n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())',
@@ -54,6 +58,9 @@ class MaterialTests(unittest.TestCase):
             self.assertIn('q("code",null,je(dufsMdSource.value),1)', js)
             self.assertNotIn('innerHTML:dufsMdSource', js)
             self.assertIn('"aria-pressed":dufsMdMode.value==="source"', js)
+            self.assertIn('p.name===dufsRequested&&p.ext==="md"', js)
+            self.assertIn('dufsAutoPreviewed!==dufsKey', js)
+            self.assertEqual(js.count('"?raw=1"'), 3)
             self.assertIn('to:e.fullpath+`/?q=`', js)
             self.assertIn('href:t+"?q="', js)
             self.assertIn('[[`json`,``],[`q`,``]]', js)
