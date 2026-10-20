@@ -43,6 +43,10 @@ def customize(archive, output, source_archive):
     }
     html = replace_once(html, '<head>', '<head><meta http-equiv="Content-Security-Policy" content="'+policy+'"><script>window.__DUFS_MATERIAL_CONFIG__='+json.dumps(config, separators=(',', ':'))+';</script>')
     js = replace_once(js, 'locale:navigator.language', 'locale:"en"')
+    # Empty q selects dufs directory listing even when render-try-index is enabled.
+    js = replace_once(js, 'to:e.fullpath+`/`', 'to:e.fullpath+`/?q=`')
+    js = replace_once(js, 'title:decodeURIComponent(n),href:t}', 'title:decodeURIComponent(n),href:t+"?q="}')
+    js = replace_once(js, 'new URLSearchParams([[`json`,``]]);b.value&&t.append', 'new URLSearchParams([[`json`,``],[`q`,``]]);b.value&&t.set')
     # The stock theme refreshes the list after LOGOUT; our cookie gateway needs navigation.
     js = replace_once(js, 'n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),await ne())', 'n.open(`LOGOUT`,`${M.value}`,!0,C.value.user),n.send()}),location.assign("/__dufs/login"))')
     (output / 'index.html').write_text(html)
