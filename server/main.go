@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -11,6 +12,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -18,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +35,11 @@ const loginPath = "/__dufs/login"
 const sessionTTL = 90 * 24 * time.Hour
 
 type sessionAuthKey struct{}
+type downloadKey struct{}
+type buttonKey struct{}
+
+const maxButtonPage = 10 << 20
+
 type attempts struct {
 	count   int
 	expires time.Time
@@ -85,6 +93,12 @@ func newGateway(origin, upstream, username, password string) (*gateway, error) {
 			r.Header.Del("WWW-Authenticate")
 			r.Header.Del("Set-Cookie")
 			r.Header.Set("Cache-Control", "private, no-store")
+			if name, ok := r.Request.Context().Value(downloadKey{}).(string); ok && r.StatusCode == http.StatusOK {
+				r.Header.Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(name))
+			}
+			if href, ok := r.Request.Context().Value(buttonKey{}).(string); ok {
+				return addDownloadButton(r, href)
+			}
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -246,6 +260,57 @@ func (g *gateway) serveFiles(w http.ResponseWriter, r *http.Request) {
 	g.proxy.ServeHTTP(w, r)
 }
 
+// Browser page views of user HTML get a floating link to the original bytes.
+func withDownloadControls(r *http.Request) *http.Request {
+	if r.Method != http.MethodGet {
+		return r
+	}
+	query := r.URL.Query()
+	base := path.Base(r.URL.Path)
+	isDir := strings.HasSuffix(r.URL.Path, "/")
+	if query.Has("download") {
+		if isDir {
+			base = "index.html"
+		}
+		return r.WithContext(context.WithValue(r.Context(), downloadKey{}, base))
+	}
+	ext := strings.ToLower(path.Ext(r.URL.Path))
+	if len(query) != 0 || r.Header.Get("Sec-Fetch-Dest") != "document" || !(isDir || ext == ".html" || ext == ".htm") {
+		return r
+	}
+	href := url.PathEscape(base) + "?download"
+	if isDir {
+		href = "index.html?download"
+	}
+	return r.WithContext(context.WithValue(r.Context(), buttonKey{}, href))
+}
+
+func addDownloadButton(r *http.Response, href string) error {
+	if r.StatusCode != http.StatusOK || r.Header.Get("Content-Encoding") != "" || !strings.HasPrefix(r.Header.Get("Content-Type"), "text/html") || r.ContentLength > maxButtonPage {
+		return nil
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxButtonPage+1))
+	r.Body.Close()
+	if err != nil {
+		return err
+	}
+	// Skip oversized pages and the file-manager UI itself (directory listings).
+	if len(body) <= maxButtonPage && !bytes.Contains(body, []byte("__DUFS_PREFIX__")) {
+		button := []byte(`<a href="` + href + `" download aria-label="Download original file" style="position:fixed;right:16px;bottom:16px;z-index:2147483647;padding:10px 16px;border-radius:999px;background:#4169c1;color:#fff;font:600 14px/1.2 system-ui,sans-serif;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.35)">&#11015; Download</a>`)
+		if i := bytes.LastIndex(bytes.ToLower(body), []byte("</body>")); i >= 0 {
+			body = append(body[:i:i], append(button, body[i:]...)...)
+		} else {
+			body = append(body, button...)
+		}
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	r.ContentLength = int64(len(body))
+	r.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	r.Header.Del("ETag")
+	r.Header.Del("Last-Modified")
+	return nil
+}
+
 func redirectMarkdown(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method != "GET" || r.Header.Get("Sec-Fetch-Mode") != "navigate" || r.Header.Get("Sec-Fetch-Dest") != "document" || !strings.EqualFold(path.Ext(r.URL.Path), ".md") {
 		return false
@@ -352,7 +417,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r = r.WithContext(context.WithValue(r.Context(), sessionAuthKey{}, true))
-		g.serveFiles(w, r)
+		g.serveFiles(w, withDownloadControls(r))
 		return
 	}
 	if r.Method == "GET" && (r.Header.Get("Sec-Fetch-Mode") == "navigate" || (r.Header.Get("Authorization") == "" && strings.Contains(r.Header.Get("Accept"), "text/html"))) {
