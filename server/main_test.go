@@ -71,7 +71,7 @@ func login(t *testing.T, g *gateway) *http.Cookie {
 		t.Fatal("missing cookie")
 	}
 	c := cookies[0]
-	if !c.Secure || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" || c.MaxAge != 28800 {
+	if !c.Secure || !c.HttpOnly || c.SameSite != http.SameSiteLaxMode || c.Path != "/" || c.MaxAge != 90*24*3600 {
 		t.Fatal("unsafe cookie attributes")
 	}
 	return c
@@ -138,12 +138,23 @@ func TestCSRFLogoutAndExpiry(t *testing.T) {
 	if call(g, "GET", "/file", "", "", cookie).Code != 401 {
 		t.Fatal("logged-out session still accepted")
 	}
-	cookie = login(t, g)
-	g.mu.Lock()
-	g.sessions[cookie.Value] = time.Now().Add(-time.Second)
-	g.mu.Unlock()
-	if call(g, "GET", "/file", "", "", cookie).Code != 401 {
+	expired := &http.Cookie{Name: cookieName, Value: g.signSession(time.Now().Add(-time.Second), make([]byte, 16))}
+	if call(g, "GET", "/file", "", "", expired).Code != 401 {
 		t.Fatal("expired session accepted")
+	}
+	cookie = login(t, g)
+	for _, bad := range []string{cookie.Value + "x", "x" + cookie.Value[1:], cookie.Value[:10]} {
+		if call(g, "GET", "/file", "", "", &http.Cookie{Name: cookieName, Value: bad}).Code != 401 {
+			t.Fatal("tampered session accepted")
+		}
+	}
+	restarted, err := newGateway(g.origin, g.upstream.String(), "ai", "test-password")
+	if err != nil || call(restarted, "GET", "/file", "", "", cookie).Code != 200 {
+		t.Fatal("session lost across gateway restart")
+	}
+	rotated, _ := newGateway(g.origin, g.upstream.String(), "ai", "new-password")
+	if call(rotated, "GET", "/file", "", "", cookie).Code != 401 {
+		t.Fatal("password rotation did not revoke sessions")
 	}
 }
 

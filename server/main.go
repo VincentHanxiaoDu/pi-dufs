@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	_ "embed"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"html/template"
 	"log"
@@ -27,7 +29,7 @@ var loginTemplate = template.Must(template.New("login").Parse(loginHTML))
 
 const cookieName = "__Host-dufs_session"
 const loginPath = "/__dufs/login"
-const sessionTTL = 8 * time.Hour
+const sessionTTL = 90 * 24 * time.Hour
 
 type sessionAuthKey struct{}
 type attempts struct {
@@ -44,7 +46,8 @@ type gateway struct {
 	upstream    *url.URL
 	uploads     sync.Mutex
 	mu          sync.Mutex
-	sessions    map[string]time.Time
+	sessionKey  []byte
+	revoked     map[string]time.Time
 	attempts    map[string]attempts
 }
 
@@ -61,7 +64,11 @@ func newGateway(origin, upstream, username, password string) (*gateway, error) {
 		return nil, fmt.Errorf("invalid credentials configuration")
 	}
 	g := &gateway{origin: "https://" + public.Host, host: public.Host, username: username, password: password, upstream: target,
-		credentials: sha256.Sum256([]byte(username + "\x00" + password)), sessions: make(map[string]time.Time), attempts: make(map[string]attempts)}
+		credentials: sha256.Sum256([]byte(username + "\x00" + password)), revoked: make(map[string]time.Time), attempts: make(map[string]attempts)}
+	// Signed, stateless sessions survive restarts; rotating the password revokes them all.
+	key := hmac.New(sha256.New, []byte(password))
+	key.Write([]byte("pi-dufs-session-v1\x00" + username))
+	g.sessionKey = key.Sum(nil)
 	g.proxy = &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
@@ -100,22 +107,53 @@ func (g *gateway) safeNext(value string) string {
 	return parsed.RequestURI()
 }
 
+func (g *gateway) signSession(expires time.Time, nonce []byte) string {
+	payload := binary.BigEndian.AppendUint64(nil, uint64(expires.Unix()))
+	payload = append(payload, nonce...)
+	mac := hmac.New(sha256.New, g.sessionKey)
+	mac.Write(payload)
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
 func (g *gateway) validSession(r *http.Request) bool {
 	cookie, err := r.Cookie(cookieName)
-	if err != nil || len(cookie.Value) != 43 {
+	if err != nil || len(cookie.Value) > 128 {
+		return false
+	}
+	encoded, signature, ok := strings.Cut(cookie.Value, ".")
+	payload, err1 := base64.RawURLEncoding.DecodeString(encoded)
+	actual, err2 := base64.RawURLEncoding.DecodeString(signature)
+	if !ok || err1 != nil || err2 != nil || len(payload) != 24 {
+		return false
+	}
+	mac := hmac.New(sha256.New, g.sessionKey)
+	mac.Write(payload)
+	if !hmac.Equal(actual, mac.Sum(nil)) || time.Now().Unix() >= int64(binary.BigEndian.Uint64(payload)) {
 		return false
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	expires, found := g.sessions[cookie.Value]
-	if !found {
-		return false
+	_, revoked := g.revoked[cookie.Value]
+	return !revoked
+}
+
+// shortcut: logout revocation is in memory, so a copied cookie works again after a gateway restart until expiry; rotate the password to revoke everything.
+func (g *gateway) revoke(r *http.Request) {
+	cookie, err := r.Cookie(cookieName)
+	if err != nil || !g.validSession(r) {
+		return
 	}
-	if time.Now().After(expires) {
-		delete(g.sessions, cookie.Value)
-		return false
+	now := time.Now()
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for value, expires := range g.revoked {
+		if now.After(expires) {
+			delete(g.revoked, value)
+		}
 	}
-	return true
+	if len(g.revoked) < 4096 {
+		g.revoked[cookie.Value] = now.Add(sessionTTL)
+	}
 }
 
 func (g *gateway) allowAttempt(r *http.Request) bool {
@@ -147,31 +185,15 @@ func (g *gateway) allowAttempt(r *http.Request) bool {
 }
 
 func (g *gateway) issueSession(w http.ResponseWriter, r *http.Request) bool {
-	token := make([]byte, 32)
-	if _, err := rand.Read(token); err != nil {
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
 		http.Error(w, "Login unavailable", 503)
 		return false
 	}
-	value := base64.RawURLEncoding.EncodeToString(token)
-	now := time.Now()
-	g.mu.Lock()
-	for key, expires := range g.sessions {
-		if now.After(expires) {
-			delete(g.sessions, key)
-		}
-	}
-	if old, err := r.Cookie(cookieName); err == nil {
-		delete(g.sessions, old.Value)
-	}
-	if len(g.sessions) >= 256 {
-		g.mu.Unlock()
-		http.Error(w, "Too many active sessions", 503)
-		return false
-	}
-	g.sessions[value] = now.Add(sessionTTL)
-	g.mu.Unlock()
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: value, Path: "/", Secure: true, HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds()), Expires: now.Add(sessionTTL)})
+	g.revoke(r)
+	expires := time.Now().Add(sessionTTL)
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: g.signSession(expires, nonce), Path: "/", Secure: true, HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds()), Expires: expires})
 	return true
 }
 
@@ -307,11 +329,7 @@ func (g *gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid origin", 403)
 			return
 		}
-		if cookie, err := r.Cookie(cookieName); err == nil {
-			g.mu.Lock()
-			delete(g.sessions, cookie.Value)
-			g.mu.Unlock()
-		}
+		g.revoke(r)
 		http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", Value: "", MaxAge: -1, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 		if r.Method == "LOGOUT" {
 			w.WriteHeader(204)

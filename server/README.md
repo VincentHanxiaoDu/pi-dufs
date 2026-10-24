@@ -3,8 +3,7 @@
 Optional standard-library-only Go proxy in front of dufs. Browsers get a real HTML login form, not an HTTP authentication popup. Existing AI/WebDAV clients still send Authorization directly and dufs validates it.
 
 - Login: `/__dufs/login`, username/password form with password-manager autocomplete.
-- Eight-hour, random, server-side sessions; Secure + HttpOnly + SameSite=Lax host-only cookie.
-- Session memory is bounded; restarting the gateway signs browsers out.
+- 90-day HMAC-signed sessions (key derived from the password) that survive gateway restarts and redeploys; Secure + HttpOnly + SameSite=Lax host-only cookie. Changing the password revokes every session. Logout revocation is kept in memory, so a copied cookie becomes valid again after a restart until it expires.
 - Login and cookie-authenticated mutations enforce the configured Origin. Login attempts are bounded (20 per minute per peer address; a shared reverse proxy may share that quota).
 - Built-in dufs `CHECKAUTH` and `LOGOUT` methods work; dufs's logout button clears the browser session. `POST /__dufs/logout` is also available.
 - Native `WWW-Authenticate` challenges are suppressed, including invalid API credentials; API clients must send Authorization proactively (the bundled skill does).
